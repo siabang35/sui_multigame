@@ -4,12 +4,8 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "env": {
-    "NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL": {
-      "description": "Supabase redirect URL for development"
-    },
-    "NEXT_PUBLIC_WS_URL": {
-      "description": "WebSocket server URL for real-time multiplayer sync"
-    }
+    "NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL": "",
+    "NEXT_PUBLIC_WS_URL": ""
   },
   "regions": ["sfo1"],
   "git": {
