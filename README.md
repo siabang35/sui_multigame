@@ -1,118 +1,130 @@
 # Rory Legend - Blockchain Multiplayer 3D Battle Arena
 
-An epic multiplayer 3D game built on the Sui blockchain testnet, featuring real-time combat, leaderboards, and WebSocket synchronization.
+An **epic multiplayer 3D game** built on the **Sui blockchain testnet**, featuring real-time combat, leaderboards, and WebSocket synchronization.
+
+---
 
 ## Features
 
-- **3D Battle Arena**: React Three Fiber powered 3D game engine with stunning visuals
-- **Blockchain Integration**: Sui Move smart contracts for game logic and state management
-- **Real-time Multiplayer**: WebSocket-based synchronization for seamless multiplayer gameplay
-- **Wallet Integration**: Sui wallet connection for blockchain transactions
-- **Advanced Physics**: Collision detection, gravity, impulse-based movement
-- **Chat System**: In-game communication with AI-powered game guide
-- **AI Assistant**: Groq LLM provides real-time game strategies and tips
-- **Leaderboards**: Global rankings with real-time updates
-- **NFT Inventory**: Support for NFT-based equipment and cosmetics
+- **3D Battle Arena**: React Three Fiber powered 3D game engine with stunning visuals.
+- **Blockchain Integration**: Sui Move smart contracts for game logic and state management.
+- **Real-time Multiplayer**: WebSocket-based synchronization for seamless gameplay.
+- **Wallet Integration**: Connect Sui wallet for blockchain transactions.
+- **Advanced Physics**: Collision detection, gravity, and impulse-based movement.
+- **Chat System**: In-game communication with AI-powered game guide.
+- **AI Assistant**: Groq LLM provides real-time game strategies and tips.
+- **Leaderboards**: Global rankings with real-time updates.
+- **NFT Inventory**: Support for NFT-based equipment and cosmetics.
+
+---
 
 ## Tech Stack
 
 - **Frontend**: Next.js 16, React 19, TypeScript
 - **3D Engine**: React Three Fiber, Three.js
-- **Blockchain**: Sui Move, @mysten/sui SDK
+- **Blockchain**: Sui Move, `@mysten/sui` SDK
 - **State Management**: Zustand
 - **Styling**: Tailwind CSS v4 with custom neon theme
-- **Real-time**: WebSocket for multiplayer sync
-- **AI**: Groq LLM for game guidance
+- **Real-time Sync**: WebSocket
+- **AI**: Groq LLM
 - **Physics**: Custom physics engine with collision detection
+
+---
 
 ## Prerequisites
 
-- Node.js 20+ 
+- Node.js 20+
 - npm or yarn
 - Sui Wallet extension (for blockchain interaction)
-- Groq API Key (for AI features) - [Get it here](https://console.groq.com)
+- Groq API Key (for AI features) — [Get it here](https://console.groq.com)
+
+---
 
 ## Installation
 
 ### 1. Clone and Install
 
-\`\`\`bash
+```bash
 git clone https://github.com/siabang35/sui_multigame
 cd sui_multigame
 npm install
-\`\`\`
+```
 
 ### 2. Setup Environment Variables
 
-Copy `.env.local.example` to `.env.local` and configure:
-
-\`\`\`bash
+```bash
 cp .env.local.example .env.local
-\`\`\`
+```
 
-Update the following variables:
-- \`NEXT_PUBLIC_SUI_NETWORK\`: Set to "testnet"
-- \`NEXT_PUBLIC_WS_URL\`: Your WebSocket server URL
-- \`NEXT_PUBLIC_GAME_PACKAGE_ID\`: Your deployed Sui package ID
-- \`GROQ_API_KEY\`: Your Groq API key for AI features
+Update `.env.local` variables:
+
+- `NEXT_PUBLIC_SUI_NETWORK`: "testnet"
+- `NEXT_PUBLIC_WS_URL`: Your WebSocket server URL
+- `NEXT_PUBLIC_GAME_PACKAGE_ID`: Your deployed Sui package ID
+- `GROQ_API_KEY`: Your Groq API key
 
 ### 3. Deploy Smart Contracts (Optional)
 
-If deploying your own contracts:
-
-\`\`\`bash
+```bash
 cd move
 sui move publish --network testnet
-\`\`\`
+```
 
-Note the Package ID and update it in \`.env.local\`.
+Note the **Package ID** and update it in `.env.local`.
+
+---
 
 ## Running the Game
 
 ### Development Mode
 
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
-The game will be available at \`http://localhost:3000\`
+Access the game at [http://localhost:3000](http://localhost:3000)
 
 ### Production Build
 
-\`\`\`bash
+```bash
 npm run build
 npm start
-\`\`\`
+```
+
+---
 
 ## Game Controls
 
-- **W/A/S/D**: Move
-- **Space**: Jump
-- **Left Mouse Button**: Attack
-- **E**: Special Ability (Heal)
-- **Tab**: View Leaderboard
-- **T**: Toggle Chat/AI Guide
-- **Click AI Guide Tab**: Ask AI for strategies and tips
+| Action                | Key/Button |
+|-----------------------|------------|
+| Move                  | W/A/S/D    |
+| Jump                  | Space      |
+| Attack                | Left Mouse |
+| Special Ability (Heal)| E          |
+| View Leaderboard      | Tab        |
+| Toggle Chat/AI Guide  | T          |
+| Ask AI for Strategy   | AI Guide Tab → Type question |
+
+---
 
 ## AI Game Guide
 
-The in-game AI assistant powered by Groq provides:
-
 ### Available Topics
+
 - **Strategies**: Combat tactics and positioning tips
 - **Controls**: Keyboard shortcuts and control reference
-- **Combat**: How to maximize damage and survive longer
-- **Abilities**: Special moves and cooldown management
+- **Combat**: Maximize damage and survival
+- **Abilities**: Special moves and cooldowns
 - **Ranking**: Tips to climb the leaderboard
-- **Game Mechanics**: Understanding health, armor, and damage
+- **Game Mechanics**: Health, armor, damage
 
 ### How to Use
 
-1. Open the Chat panel (bottom-left corner)
-2. Click the **AI Guide** tab
+1. Open the **Chat panel** (bottom-left)
+2. Click **AI Guide** tab
 3. Type your question (e.g., "How do I win fights?")
-4. The AI will respond with helpful tips and strategies
-5. Conversation history is maintained for context-aware responses
+4. AI responds with context-aware strategies
+5. Conversation history is maintained
 
 ### Example Questions
 
@@ -122,123 +134,101 @@ The in-game AI assistant powered by Groq provides:
 - "What are the combat mechanics?"
 - "Give me tips for survival"
 
+---
+
 ## Architecture
 
 ### Frontend Structure
 
-\`\`\`
+```
 app/
 ├── page.tsx                 # Main game page
-├── layout.tsx              # Root layout with fonts & global styles
-├── globals.css             # Design tokens & utilities
-└── api/
-    └── groq-ai/
-        └── chat/route.ts   # Groq AI chat API
+├── layout.tsx               # Root layout
+├── globals.css              # Design tokens & utilities
+└── api/groq-ai/chat/route.ts
 
 components/
-├── game/                    # 3D game components
-│   ├── game-scene.tsx      # Main 3D scene
-│   ├── player-model.tsx    # Player 3D models
-│   ├── game-environment.tsx # Arena and obstacles
-│   ├── game-hud.tsx        # In-game UI overlay
-│   ├── game-controller.tsx  # Game loop provider
-│   └── chat-system.tsx     # Chat + AI Guide (UPDATED)
-├── dashboard/              # Dashboard UI
-│   ├── main-dashboard.tsx  # Main lobby interface
-│   └── player-profile.tsx  # Player stats
-├── blockchain/             # Blockchain integration
-│   ├── wallet-connect.tsx  # Wallet connection UI
-│   ├── game-browser.tsx    # Game list and joining
+├── game/
+│   ├── game-scene.tsx
+│   ├── player-model.tsx
+│   ├── game-environment.tsx
+│   ├── game-hud.tsx
+│   ├── game-controller.tsx
+│   └── chat-system.tsx
+├── dashboard/
+│   ├── main-dashboard.tsx
+│   └── player-profile.tsx
+├── blockchain/
+│   ├── wallet-connect.tsx
+│   ├── game-browser.tsx
 │   └── transaction-monitor.tsx
-└── game-sync/              # Real-time multiplayer
+└── game-sync/
     ├── game-sync-provider.tsx
     └── connection-status-bar.tsx
 
 lib/
-├── game-state.ts           # Zustand store for game state
-├── game-input-manager.ts   # Input handling
-├── game-physics.ts         # Physics engine
-├── game-controller.ts      # Game logic controller
-├── sui-client.ts           # Sui blockchain client
-├── sui-game-service.ts     # Smart contract interactions
-├── websocket-manager.ts    # WebSocket management
-├── multiplayer-sync.ts     # Real-time sync logic
-└── optimization-utils.ts   # Performance optimizations
+├── game-state.ts
+├── game-input-manager.ts
+├── game-physics.ts
+├── game-controller.ts
+├── sui-client.ts
+├── sui-game-service.ts
+├── websocket-manager.ts
+├── multiplayer-sync.ts
+└── optimization-utils.ts
 
 hooks/
-├── use-groq-ai.ts          # Groq AI hook (NEW)
+├── use-groq-ai.ts
 ├── use-blockchain-game-data.ts
 └── use-sui-wallet.ts
 
 move/
-├── sources/
-│   └── game.move           # Sui Move smart contracts
+├── sources/game.move
 └── Move.toml
-\`\`\`
+```
 
 ### Blockchain Smart Contracts
 
-The game uses Sui Move contracts to handle:
-- Game creation and management
-- Player state (position, health, score, kills/deaths)
-- Combat mechanics (attack, damage, kills)
+- Game creation & management
+- Player state: position, health, score, kills/deaths
+- Combat mechanics: attack, damage, kills
 - Leaderboard updates
 - Respawn logic
 
-All game state transitions are atomic and immutable on the blockchain.
+All state transitions are atomic and immutable on the blockchain.
 
 ### AI Chat System
 
-The chat system now includes two tabs:
+- **Chat Tab**: Player-to-player messages
+- **AI Guide Tab**: Real-time AI assistance powered by Groq
+- Context-aware responses and game-specific guidance
 
-**Chat Tab**: Player-to-player communication with system messages
-**AI Guide Tab**: Real-time AI assistance powered by Groq
-
-The AI guide provides:
-- Context-aware responses based on conversation history
-- Game-specific knowledge about mechanics, strategies, and tips
-- Conversational tone to enhance player engagement
-- Helpful guidance for new and experienced players
+---
 
 ## Deployment to Vercel
 
-### 1. Connect Repository
-
-\`\`\`bash
+```bash
 vercel link
-\`\`\`
+```
 
-### 2. Set Environment Variables
+Set environment variables in Vercel dashboard:
 
-In Vercel dashboard, add:
-- \`NEXT_PUBLIC_SUI_NETWORK=testnet\`
-- \`NEXT_PUBLIC_WS_URL=your_ws_url\`
-- \`NEXT_PUBLIC_GAME_PACKAGE_ID=your_package_id\`
-- \`GROQ_API_KEY=your_groq_api_key\`
+- `NEXT_PUBLIC_SUI_NETWORK=testnet`
+- `NEXT_PUBLIC_WS_URL=your_ws_url`
+- `NEXT_PUBLIC_GAME_PACKAGE_ID=your_package_id`
+- `GROQ_API_KEY=your_groq_api_key`
 
-### 3. Deploy
+Deploy:
 
-\`\`\`bash
+```bash
 vercel deploy
-\`\`\`
+```
 
-Or use Git integration for automatic deployments.
-
-## Getting Groq API Key
-
-1. Visit [console.groq.com](https://console.groq.com)
-2. Sign up or login
-3. Create a new API key
-4. Copy the key and add it to your \`.env.local\` file as \`GROQ_API_KEY\`
-
-The Groq API is free for development with generous rate limits.
+---
 
 ## WebSocket Server Setup
 
-The game requires a WebSocket server for real-time multiplayer sync. Example server implementation:
-
-\`\`\`typescript
-// Example: Express + Socket.IO server
+```typescript
 import express from 'express';
 import { Server } from 'socket.io';
 
@@ -248,30 +238,26 @@ const io = new Server(app, { cors: { origin: '*' } });
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
 
-  socket.on('player-move', (data) => {
-    io.emit('player-move', data);
-  });
-
-  socket.on('player-attack', (data) => {
-    io.emit('player-attack', data);
-  });
-
-  socket.on('disconnect', () => {
-    io.emit('player-leave', { playerId: socket.id });
-  });
+  socket.on('player-move', (data) => io.emit('player-move', data));
+  socket.on('player-attack', (data) => io.emit('player-attack', data));
+  socket.on('disconnect', () => io.emit('player-leave', { playerId: socket.id }));
 });
 
 app.listen(8080, () => console.log('Server running on port 8080'));
-\`\`\`
+```
+
+---
 
 ## Performance Optimizations
 
-- **Code Splitting**: Dynamic imports for components
-- **Image Optimization**: WebP and AVIF formats
-- **Object Pooling**: Reuse physics objects
-- **Message Batching**: Batch WebSocket messages
-- **Lazy Loading**: Components load on demand
-- **Memoization**: React component optimization
+- Code Splitting & Dynamic Imports
+- Image Optimization (WebP, AVIF)
+- Object Pooling
+- WebSocket Message Batching
+- Lazy Loading Components
+- Memoization of React Components
+
+---
 
 ## Browser Support
 
@@ -280,89 +266,88 @@ app.listen(8080, () => console.log('Server running on port 8080'));
 - Safari 14+
 - Edge 90+
 
+---
+
 ## Security Considerations
 
-- All wallet interactions are client-side
-- Smart contracts are audited on Sui testnet
-- WebSocket connections use WSS (encrypted)
-- Input validation on all game actions
-- Rate limiting on blockchain transactions
-- Groq API key stored server-side only
+- Client-side wallet interactions
+- Audited Sui smart contracts
+- WSS (encrypted WebSocket)
+- Input validation on all actions
+- Rate limiting for blockchain transactions
+- Server-side Groq API key storage
 
-## Performance Monitoring
-
-Enable performance monitoring with:
-
-\`\`\`typescript
-import { performanceMonitor } from '@/lib/performance-monitor';
-
-performanceMonitor?.trackWebVitals();
-performanceMonitor?.logMetrics();
-\`\`\`
+---
 
 ## Troubleshooting
 
 ### AI Guide Not Responding
-- Verify \`GROQ_API_KEY\` is set in environment variables
-- Check Groq API status at console.groq.com
-- Review browser console for API errors
-- Ensure API key has appropriate permissions
+- Verify `GROQ_API_KEY`
+- Check Groq API status
+- Inspect browser console for errors
 
 ### Wallet Connection Issues
-- Ensure Sui Wallet extension is installed and connected to testnet
-- Check browser console for error messages
-- Refresh page and try again
+- Ensure Sui Wallet installed and connected to testnet
+- Refresh page
+- Check console for errors
 
-### WebSocket Connection Issues
-- Verify \`NEXT_PUBLIC_WS_URL\` environment variable is set
-- Check WebSocket server is running
-- Look for CORS errors in browser console
+### WebSocket Issues
+- Verify `NEXT_PUBLIC_WS_URL`
+- Ensure WebSocket server is running
+- Check CORS errors
 
 ### 3D Scene Not Rendering
-- Check WebGL support in browser
-- Verify Three.js is loaded correctly
-- Check browser console for GPU-related errors
+- Verify WebGL support
+- Ensure Three.js loaded
+- Check GPU console errors
 
 ### Performance Issues
-- Reduce graphics quality in settings
+- Reduce graphics quality
 - Lower max player count
 - Check network latency (PING)
-- Monitor FPS in connection status bar
+- Monitor FPS via status bar
+
+---
 
 ## Contributing
 
-Contributions are welcome! Please follow these guidelines:
-
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
+3. Make changes
 4. Submit a pull request
+
+---
 
 ## License
 
 MIT
 
+---
+
 ## Support
 
-For issues, questions, or suggestions:
 - Open an issue on GitHub
-- Check existing documentation
-- Review error messages in browser console
-- Ask the AI Guide in-game for help
+- Check documentation
+- Review browser console errors
+- Ask AI Guide in-game
+
+---
 
 ## Roadmap
 
 - [ ] NFT marketplace integration
 - [ ] Custom character cosmetics
-- [ ] Ranked matchmaking system
-- [ ] Team-based game modes
-- [ ] Mobile app support
-- [ ] Advanced analytics dashboard
+- [ ] Ranked matchmaking
+- [ ] Team-based modes
+- [ ] Mobile support
+- [ ] Analytics dashboard
 - [ ] Replay system
 - [ ] Modding support
-- [ ] Multi-language AI Guide support
+- [ ] Multi-language AI Guide
 - [ ] Tournament system
+
+---
 
 ## Credits
 
-Built with love for the Sui blockchain community. Powered by Groq AI for next-gen gaming guidance.
+Built with love for the Sui blockchain community. Powered by **Groq AI** for next-gen gaming guidance.
