@@ -1,0 +1,22 @@
+{
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "nodeVersion": "20.x",
+  "env": {
+    "NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL": {
+      "description": "Supabase redirect URL for development"
+    },
+    "NEXT_PUBLIC_WS_URL": {
+      "description": "WebSocket server URL for real-time multiplayer sync"
+    }
+  },
+  "buildOutputDirectory": ".next",
+  "regions": ["sfo1"],
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  }
+}
