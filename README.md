@@ -1,4 +1,4 @@
-# MULTIPLY - Blockchain Multiplayer 3D Battle Arena
+# Rory Legend - Blockchain Multiplayer 3D Battle Arena
 
 An epic multiplayer 3D game built on the Sui blockchain testnet, featuring real-time combat, leaderboards, and WebSocket synchronization.
 
@@ -37,8 +37,8 @@ An epic multiplayer 3D game built on the Sui blockchain testnet, featuring real-
 ### 1. Clone and Install
 
 \`\`\`bash
-git clone <repository-url>
-cd multiply-game
+git clone https://github.com/siabang35/sui_multigame
+cd sui_multigame
 npm install
 \`\`\`
 
