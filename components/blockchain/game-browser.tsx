@@ -146,43 +146,42 @@ export function GameBrowser() {
       }
 
       // Set game state with current player data
+      const playerState = {
+        id: playerData.id,
+        address: playerData.address,
+        username: playerData.username,
+        x: playerData.x || 0,
+        y: playerData.y || 0,
+        z: playerData.z || 0,
+        health: playerData.health || 100,
+        score: playerData.score || 0,
+        kills: playerData.kills || 0,
+        deaths: playerData.deaths || 0,
+        isAlive: playerData.isAlive !== false,
+        syncStatus: 'synced' as const,
+      };
+
       setGameState({
         gameId: game.id,
         gameName: game.name,
         isActive: game.isActive,
         playerCount: game.playerCount + 1,
         maxPlayers: game.maxPlayers,
-        currentPlayer: {
-          id: playerData.id,
-          address: playerData.address,
-          username: playerData.username,
-          x: playerData.x || 0,
-          y: playerData.y || 0,
-          z: playerData.z || 0,
-          health: playerData.health || 100,
-          score: playerData.score || 0,
-          kills: playerData.kills || 0,
-          deaths: playerData.deaths || 0,
-          isAlive: playerData.isAlive !== false,
-          syncStatus: 'synced',
-        },
+        currentPlayer: playerState,
+      });
+
+      console.log('[] Game state set successfully:', {
+        gameId: game.id,
+        playerId: playerState.id,
+        username: playerState.username,
+        health: playerState.health,
       });
 
       // Update blockchain sync status
       useGameStore.getState().updateBlockchainSync('connected');
 
-      // Connect multiplayer sync for realtime gameplay (skip if no WebSocket URL)
-      if (multiplayerSync && process.env.NEXT_PUBLIC_WS_URL) {
-        console.log('[] Attempting multiplayer sync connection...');
-        // Don't await - let it connect in background
-        multiplayerSync.connect(playerData.id, game.id).then(() => {
-          console.log('[] Multiplayer sync connected for game:', game.id);
-        }).catch((syncError) => {
-          console.warn('[] Multiplayer sync connection failed, continuing without real-time sync:', syncError);
-        });
-      } else {
-        console.log('[] Skipping multiplayer sync - no WebSocket URL configured');
-      }
+      // Multiplayer sync will be handled by GameSyncProvider after game state is set
+      console.log('[] Game join completed, multiplayer sync will be initialized by GameSyncProvider');
 
       console.log('[] Game joined successfully, transitioning to game view');
       setSelectedGame(null);

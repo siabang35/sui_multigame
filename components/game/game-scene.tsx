@@ -8,6 +8,7 @@ import { PlayerModel } from './player-model';
 import { SpaceEnvironment } from './space-environment';
 import { useGameStore } from '@/lib/game-state';
 import { useIsMobile } from '@/components/ui/use-mobile';
+import { GameSyncProvider } from './game-sync-provider';
 
 interface GameSceneProps {
   isMultiplayer?: boolean;
@@ -15,7 +16,7 @@ interface GameSceneProps {
 
 export function GameScene({ isMultiplayer = true }: GameSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [isLoading, setIsLoading] = useState(true);
   const isMobile = useIsMobile();
   const gameState = useGameStore((state) => state.game);
@@ -37,30 +38,67 @@ export function GameScene({ isMultiplayer = true }: GameSceneProps) {
 
   useEffect(() => {
     // Set loading to false after a short delay to ensure everything is rendered
-    const timer = setTimeout(() => setIsLoading(false), 500);
+    const timer = setTimeout(() => setIsLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
   // Show loading screen if no game state or still loading
-  if (windowSize.width === 0 || isLoading || !gameState.gameId || !gameState.currentPlayer) {
+  if (windowSize.width === 0 || isLoading) {
     return (
       <div className="w-full h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-cyan-400 text-lg font-semibold">Loading Space Arena...</p>
           <p className="text-gray-400 text-sm mt-2">
-            {!gameState.gameId ? 'Waiting for game data...' :
-             !gameState.currentPlayer ? 'Initializing player...' :
-             'Preparing spaceship battlefield'}
+            Preparing spaceship battlefield
           </p>
         </div>
       </div>
     );
   }
 
+  // Show error if no game state after loading
+  if (!gameState.gameId || !gameState.currentPlayer || !gameState.currentPlayer.id) {
+    return (
+      <div className="w-full h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-400">
+            <p className="text-lg font-semibold mb-2">Game Loading Error</p>
+            <p className="text-sm">
+              {!gameState.gameId ? 'No game session found' : 'Player data not available'}
+            </p>
+            <button
+              onClick={() => {
+                // Reset game state and go back to lobby
+                useGameStore.getState().setGameState({
+                  gameId: null,
+                  gameName: '',
+                  isActive: false,
+                  playerCount: 0,
+                  maxPlayers: 0,
+                  currentPlayer: null,
+                  otherPlayers: [],
+                  leaderboard: [],
+                  blockchainSyncStatus: 'disconnected',
+                  lastBlockchainSync: 0,
+                  pendingTransactions: [],
+                });
+                window.location.reload();
+              }}
+              className="mt-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded text-white text-sm"
+            >
+              Back to Lobby
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div ref={containerRef} className="w-full h-screen relative bg-black">
-      <Canvas
+    <GameSyncProvider>
+      <div ref={containerRef} className="w-full h-screen relative bg-black">
+        <Canvas
         className="!h-full"
         camera={{ position: [0, 0, 50], fov: isMobile ? 75 : 60 }}
         shadows
@@ -84,6 +122,10 @@ export function GameScene({ isMultiplayer = true }: GameSceneProps) {
 
         {/* Player Spaceships */}
         <PlayerModel />
+
+        {/* Other Players are already rendered in PlayerModel component */}
+
+        {/* Game Controller Integration - handled via hooks in PlayerModel */}
 
         {/* Space Controls */}
         <OrbitControls
@@ -120,7 +162,8 @@ export function GameScene({ isMultiplayer = true }: GameSceneProps) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </GameSyncProvider>
   );
 }
 

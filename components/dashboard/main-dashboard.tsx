@@ -22,7 +22,7 @@ export function MainDashboard() {
   const [view, setView] = useState<DashboardView>('lobby');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const gameState = useGameStore((state) => state.game);
-  const isInGame = !!gameState.gameId && !!gameState.currentPlayer;
+  const isInGame = !!gameState.gameId && !!gameState.currentPlayer && !!gameState.currentPlayer.id && gameState.isActive;
   const { games } = useGamesList();
   const isMobile = useIsMobile();
 

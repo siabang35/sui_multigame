@@ -37,6 +37,7 @@ export class WebSocketManager {
   constructor(url: string) {
     // Use a dummy WebSocket URL if none provided to prevent connection attempts
     this.url = url || 'ws://dummy-url-that-wont-connect';
+    console.log('[WebSocket] Initialized with URL:', this.url);
   }
 
   async connect(playerId: string, gameId: string): Promise<void> {

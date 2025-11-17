@@ -6,6 +6,7 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from '@/lib/game-state';
 import { useGameController } from '@/hooks/use-game-controller';
+import { MultiplayerGameController } from '@/lib/game-controller';
 
 export function PlayerModel() {
   const groupRef = useRef<THREE.Group>(null);
@@ -13,32 +14,13 @@ export function PlayerModel() {
   const updatePlayerPosition = useGameStore((state) => state.updatePlayerPosition);
   const { inputState } = useGameController();
   const otherPlayers = gameState.otherPlayers;
+  const controller = useGameController();
 
   useFrame((state, delta) => {
     if (!gameState.currentPlayer) return;
 
-    const player = gameState.currentPlayer;
-    const speed = 15 * delta; // Faster movement in space
-
-    // Handle movement input
-    let newX = player.x;
-    let newY = player.y;
-    let newZ = player.z;
-
-    if (inputState.forward) newZ -= speed;
-    if (inputState.backward) newZ += speed;
-    if (inputState.left) newX -= speed;
-    if (inputState.right) newX += speed;
-
-    // Space boundary checks (larger area)
-    newX = Math.max(-180, Math.min(180, newX));
-    newZ = Math.max(-180, Math.min(180, newZ));
-    newY = Math.max(-80, Math.min(80, newY));
-
-    // Update position if changed
-    if (newX !== player.x || newY !== player.y || newZ !== player.z) {
-      updatePlayerPosition(newX, newY, newZ);
-    }
+    // Update game controller with delta time
+    (controller as MultiplayerGameController).update(delta);
   });
 
   return (

@@ -12,20 +12,29 @@ export function GameSyncProvider({ children }: { children: React.ReactNode }) {
     initializeRef.current = true;
 
     const gameState = useGameStore.getState();
-    if (gameState.game.gameId && gameState.game.currentPlayer && multiplayerSync) {
+    if (gameState.game.gameId && gameState.game.currentPlayer?.id && multiplayerSync !== null) {
       console.log('[] GameSyncProvider: Connecting multiplayer sync for player:', gameState.game.currentPlayer.username);
-      multiplayerSync
-        .connect(gameState.game.currentPlayer.id, gameState.game.gameId)
-        .then(() => {
-          console.log('[] GameSyncProvider: Multiplayer sync connected successfully');
-        })
-        .catch((error) => {
-          console.error('[] GameSyncProvider: Failed to connect multiplayer sync:', error);
-        });
+
+      // Add a small delay to ensure game state is fully set
+      setTimeout(() => {
+        if (multiplayerSync) {
+          multiplayerSync
+            .connect(gameState.game.currentPlayer!.id, gameState.game.gameId!)
+            .then(() => {
+              console.log('[] GameSyncProvider: Multiplayer sync connected successfully');
+            })
+            .catch((error) => {
+              console.error('[] GameSyncProvider: Failed to connect multiplayer sync:', error);
+              // Don't treat this as a fatal error - game can still work without WebSocket
+            });
+        }
+      }, 3000); // Increased delay to ensure game state is stable
 
       return () => {
         console.log('[] GameSyncProvider: Disconnecting multiplayer sync');
-        multiplayerSync?.disconnect();
+        if (multiplayerSync) {
+          multiplayerSync.disconnect();
+        }
       };
     }
   }, []);

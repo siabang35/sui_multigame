@@ -181,5 +181,5 @@ export class MultiplayerSync {
 }
 
 export const multiplayerSync = typeof window !== 'undefined'
-  ? new MultiplayerSync(process.env.NEXT_PUBLIC_WS_URL || '')
+  ? new MultiplayerSync('ws://dummy-url-that-wont-connect')
   : null;
