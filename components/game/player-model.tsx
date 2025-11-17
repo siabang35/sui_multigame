@@ -32,7 +32,7 @@ export function PlayerModel() {
         </group>
       )}
 
-      {/* Other Player Spaceships */}
+      {/* Other Player Spaceships (including AI enemies) */}
       {otherPlayers.map((player) => (
         <group key={player.id} position={[player.x, player.y, player.z]}>
           <Spaceship isLocalPlayer={false} playerName={player.username} player={player} />

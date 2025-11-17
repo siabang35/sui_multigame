@@ -46,19 +46,22 @@ export class PhysicsEngine {
   }
 
   update(deltaTime: number) {
+    // Limit deltaTime to prevent large jumps (helps with lag)
+    const clampedDeltaTime = Math.min(deltaTime, 1/30); // Max 30 FPS equivalent
+
     this.objects.forEach((obj) => {
       // Apply forces
       obj.ay = GRAVITY; // Gravity
 
-      // Apply velocity
-      obj.x += obj.vx * deltaTime;
-      obj.y += obj.vy * deltaTime;
-      obj.z += obj.vz * deltaTime;
+      // Apply velocity with clamped delta time
+      obj.x += obj.vx * clampedDeltaTime;
+      obj.y += obj.vy * clampedDeltaTime;
+      obj.z += obj.vz * clampedDeltaTime;
 
-      // Apply acceleration
-      obj.vx += obj.ax * deltaTime;
-      obj.vy += obj.ay * deltaTime;
-      obj.vz += obj.az * deltaTime;
+      // Apply acceleration with clamped delta time
+      obj.vx += obj.ax * clampedDeltaTime;
+      obj.vy += obj.ay * clampedDeltaTime;
+      obj.vz += obj.az * clampedDeltaTime;
 
       // Ground collision
       if (obj.y <= GROUND_LEVEL + obj.radius) {
@@ -81,8 +84,10 @@ export class PhysicsEngine {
       obj.az = 0;
     });
 
-    // Check collisions
-    this.checkCollisions();
+    // Check collisions only if we have reasonable number of objects
+    if (this.objects.size <= 20) { // Limit collision checks for performance
+      this.checkCollisions();
+    }
   }
 
   applyForce(id: string, fx: number, fy: number, fz: number) {

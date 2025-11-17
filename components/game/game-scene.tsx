@@ -147,19 +147,35 @@ export function GameScene({ isMultiplayer = true }: GameSceneProps) {
         <div className={`absolute top-4 ${isMobile ? 'left-2 right-2' : 'left-4 right-4'} flex justify-between items-start pointer-events-auto`}>
           <div className="space-y-2">
             <div className={`text-cyan-400 font-bold ${isMobile ? 'text-base' : 'text-sm'} glow-cyan`}>SPACE SHOOTER</div>
-            <div className="text-xs text-gray-400">Sui Testnet</div>
+            <div className="text-xs text-gray-400">Single Player Mode</div>
           </div>
           <div className="space-y-2 text-right">
-            <div className="text-xs text-gray-400">PING: 12ms</div>
-            <div className="text-xs text-gray-400">FPS: 60</div>
+            <div className="text-xs text-gray-400">ENEMIES: {gameState.otherPlayers.length}</div>
+            <div className="text-xs text-gray-400">HEALTH: {gameState.currentPlayer?.health || 0}/100</div>
           </div>
         </div>
 
         {/* Crosshair */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-          <div className="w-6 h-6 border border-cyan-400 rounded-full opacity-50">
-            <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-cyan-400 rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="w-8 h-8 border-2 border-cyan-400 rounded-full opacity-70">
+            <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-cyan-400 rounded-full transform -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
           </div>
+        </div>
+
+        {/* Controls Help */}
+        <div className="absolute bottom-4 left-4 text-xs text-gray-400 space-y-1 pointer-events-auto">
+          <div className="text-cyan-300 font-semibold">CONTROLS:</div>
+          <div>WASD: Move</div>
+          <div>Mouse: Attack (Area)</div>
+          <div>E: Heal (You + Enemies)</div>
+          <div>Space: Jump</div>
+        </div>
+
+        {/* Attack Range Indicator */}
+        <div className="absolute bottom-4 right-4 text-xs text-gray-400 space-y-1 pointer-events-auto">
+          <div className="text-cyan-300 font-semibold">ATTACK RANGE: 8m</div>
+          <div>Damage: 25 HP</div>
+          <div>Cooldown: 0.5s</div>
         </div>
       </div>
       </div>

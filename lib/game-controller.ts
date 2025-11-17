@@ -65,14 +65,102 @@ export class MultiplayerGameController implements GameController {
         mass: 1,
         isGrounded: false,
       });
+
+      // Setup physics for AI enemies
+      gameState.game.otherPlayers.forEach((enemy: any, index: number) => {
+        this.physics.addObject(`enemy-${enemy.id}`, {
+          x: enemy.x,
+          y: enemy.y,
+          z: enemy.z,
+          vx: 0,
+          vy: 0,
+          vz: 0,
+          ax: 0,
+          ay: 0,
+          az: 0,
+          radius: 0.4,
+          mass: 1,
+          isGrounded: false,
+        });
+      });
     }
   }
 
   update(deltaTime: number) {
+    // Optimize physics updates to reduce lag
+    this.optimizePhysicsUpdates();
+
     this.physics.update(deltaTime);
     this.handleInput();
     this.updateGameState();
     this.updateAttackCooldown(deltaTime);
+    this.updateAIEnemies(deltaTime);
+  }
+
+  private updateAIEnemies(deltaTime: number) {
+    const gameState = useGameStore.getState();
+    const player = gameState.game.currentPlayer;
+
+    if (!player) return;
+
+    gameState.game.otherPlayers.forEach((enemy: any) => {
+      if (!enemy.isAlive) return;
+
+      // Simple AI: move towards player with smoother movement
+      const dx = player.x - enemy.x;
+      const dz = player.z - enemy.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+
+      if (distance > 5) { // Keep more distance for better gameplay
+        const moveSpeed = 3; // Slightly faster for more responsive AI
+        const moveX = (dx / distance) * moveSpeed * deltaTime;
+        const moveZ = (dz / distance) * moveSpeed * deltaTime;
+
+        // Update enemy position with physics
+        const physicsObj = this.physics.getObject(`enemy-${enemy.id}`);
+        if (physicsObj) {
+          physicsObj.x += moveX;
+          physicsObj.z += moveZ;
+
+          // Update game state from physics
+          gameState.addOtherPlayer({
+            ...enemy,
+            x: physicsObj.x,
+            z: physicsObj.z,
+          });
+        } else {
+          // Fallback direct update
+          const newX = enemy.x + moveX;
+          const newZ = enemy.z + moveZ;
+
+          gameState.addOtherPlayer({
+            ...enemy,
+            x: newX,
+            z: newZ,
+          });
+        }
+      }
+
+      // More frequent attacks when close for better combat feel
+      if (distance < 10 && Math.random() < 0.02) { // 2% chance per frame when close
+        this.performEnemyAttack(enemy, player);
+      }
+    });
+  }
+
+  private performEnemyAttack(attacker: any, target: any) {
+    const damage = 20; // Increased damage for more challenge
+    const gameState = useGameStore.getState();
+
+    // Apply damage to player
+    const newHealth = Math.max(0, target.health - damage);
+    gameState.updatePlayerHealth(newHealth);
+
+    // Knockback effect on player
+    this.applyKnockback(attacker, target, 5); // Stronger knockback
+
+    // Visual feedback - could add hit effect here
+    console.log(`[] Enemy ${attacker.username} attacked player for ${damage} damage`);
   }
 
   handleInput() {
@@ -125,49 +213,163 @@ export class MultiplayerGameController implements GameController {
 
     if (!player) return;
 
-    // Find nearby enemies within attack range (5 units)
-    const attackRange = 5;
-    const targetedPlayers = gameState.game.otherPlayers.filter((p: any) => {
-      const dx = p.x - player.x;
-      const dy = p.y - player.y;
-      const dz = p.z - player.z;
-      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      return distance <= attackRange && p.isAlive;
-    });
+    // Find nearby enemies within attack range (8 units for better gameplay)
+    const attackRange = 8;
+    const targetedEnemies = this.getNearbyEnemies(player, attackRange);
 
-    if (targetedPlayers.length > 0) {
-      const target = targetedPlayers[0]; // Attack closest enemy
-      const damage = 20;
+    if (targetedEnemies.length > 0) {
+      // Attack all enemies in range for more dynamic combat
+      targetedEnemies.forEach((target: any) => {
+        const damage = 25; // Increased damage for better feel
 
-      // Send attack transaction to blockchain
-      if (gameState.game.gameId) {
-        suiGameService.attackPlayer(gameState.game.gameId, player.id, target.id, damage)
-          .then((digest: string) => {
-            console.log('[] Attack transaction sent:', digest);
-            gameState.addPendingTransaction(digest, 'attack_player');
-          })
-          .catch((error: any) => {
-            console.error('[] Failed to send attack:', error);
-          });
-      }
+        // Apply damage to enemy
+        this.damageEnemy(target, damage);
 
-      // Emit attack event for local sync
-      this.onAttack({
-        attackerId: player.id,
-        targetId: target.id,
-        damage,
-        timestamp: Date.now(),
+        // Emit attack event for local sync
+        this.onAttack({
+          attackerId: player.id,
+          targetId: target.id,
+          damage,
+          timestamp: Date.now(),
+        });
+
+        // Knockback effect
+        this.applyKnockback(player, target, 8); // Stronger knockback
       });
 
-      // Knockback effect
-      const dx = target.x - player.x;
-      const dz = target.z - player.z;
-      const distance = Math.sqrt(dx * dx + dz * dz);
-      const knockbackForce = 5;
-      const knockbackX = (dx / distance) * knockbackForce;
-      const knockbackZ = (dz / distance) * knockbackForce;
+      // Visual feedback - screen shake effect could be added here
+    }
+  }
 
-      // Create knockback effect (will be synced via websocket)
+  private getNearbyEnemies(player: any, range: number): any[] {
+    // For single-player mode, create AI enemies if none exist
+    const gameState = useGameStore.getState();
+    let enemies = [...gameState.game.otherPlayers];
+
+    // If no other players, spawn AI enemies
+    if (enemies.length === 0) {
+      enemies = this.spawnAIEnemies();
+    }
+
+    return enemies.filter((enemy: any) => {
+      const dx = enemy.x - player.x;
+      const dy = enemy.y - player.y;
+      const dz = enemy.z - player.z;
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      return distance <= range && enemy.isAlive;
+    });
+  }
+
+  private spawnAIEnemies(): any[] {
+    const enemies: any[] = [];
+    const gameState = useGameStore.getState();
+    const player = gameState.game.currentPlayer;
+
+    if (!player) return enemies;
+
+    // Spawn 3-5 AI enemies around the player
+    const numEnemies = 3 + Math.floor(Math.random() * 3);
+
+    for (let i = 0; i < numEnemies; i++) {
+      const angle = (i / numEnemies) * Math.PI * 2;
+      const distance = 20 + Math.random() * 30;
+      const x = player.x + Math.cos(angle) * distance;
+      const z = player.z + Math.sin(angle) * distance;
+
+      const enemy = {
+        id: `ai-enemy-${i}`,
+        address: `ai-${i}`,
+        username: `Enemy ${i + 1}`,
+        x,
+        y: 0,
+        z,
+        health: 100,
+        score: 0,
+        kills: 0,
+        deaths: 0,
+        isAlive: true,
+        syncStatus: 'synced' as const,
+      };
+
+      enemies.push(enemy);
+      gameState.addOtherPlayer(enemy);
+    }
+
+    return enemies;
+  }
+
+  private damageEnemy(target: any, damage: number) {
+    const gameState = useGameStore.getState();
+    const newHealth = Math.max(0, target.health - damage);
+    const isAlive = newHealth > 0;
+
+    gameState.addOtherPlayer({
+      ...target,
+      health: newHealth,
+      isAlive,
+    });
+
+    // If enemy died, respawn after delay
+    if (!isAlive) {
+      setTimeout(() => {
+        this.respawnEnemy(target);
+      }, 3000);
+    }
+  }
+
+  private respawnEnemy(enemy: any) {
+    const gameState = useGameStore.getState();
+    const player = gameState.game.currentPlayer;
+
+    if (!player) return;
+
+    // Respawn at random location away from player
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 30 + Math.random() * 20;
+    const x = player.x + Math.cos(angle) * distance;
+    const z = player.z + Math.sin(angle) * distance;
+
+    gameState.addOtherPlayer({
+      ...enemy,
+      x,
+      y: 0,
+      z,
+      health: 100,
+      isAlive: true,
+    });
+  }
+
+  private applyKnockback(attacker: any, target: any, force: number) {
+    const dx = target.x - attacker.x;
+    const dz = target.z - attacker.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+
+    if (distance === 0) return;
+
+    const knockbackX = (dx / distance) * force;
+    const knockbackZ = (dz / distance) * force;
+
+    // Check if target is player or enemy
+    if (target.id === useGameStore.getState().game.currentPlayer?.id) {
+      // Apply knockback to player physics object
+      const playerObj = this.physics.getObject('player');
+      if (playerObj) {
+        this.physics.applyImpulse('player', knockbackX, 0, knockbackZ);
+      }
+    } else {
+      // Apply knockback to enemy physics object
+      const physicsObj = this.physics.getObject(`enemy-${target.id}`);
+      if (physicsObj) {
+        this.physics.applyImpulse(`enemy-${target.id}`, knockbackX, 0, knockbackZ);
+      } else {
+        // Update position directly
+        const gameState = useGameStore.getState();
+        gameState.addOtherPlayer({
+          ...target,
+          x: target.x + knockbackX,
+          z: target.z + knockbackZ,
+        });
+      }
     }
   }
 
@@ -187,12 +389,65 @@ export class MultiplayerGameController implements GameController {
       abilityType: 'heal',
       timestamp: Date.now(),
     });
+
+    // Also heal nearby AI enemies for single-player challenge
+    const nearbyEnemies = this.getNearbyEnemies(player, 15);
+    nearbyEnemies.forEach((enemy: any) => {
+      const enemyHealAmount = 20;
+      const enemyNewHealth = Math.min(enemy.health + enemyHealAmount, 100);
+      gameState.addOtherPlayer({
+        ...enemy,
+        health: enemyNewHealth,
+      });
+    });
   }
 
   private updateAttackCooldown(deltaTime: number) {
     if (this.attackCooldown > 0) {
       this.attackCooldown -= deltaTime;
     }
+  }
+
+  // Add method to reduce lag by optimizing physics updates
+  private optimizePhysicsUpdates() {
+    // Reduce collision checks for distant objects
+    const gameState = useGameStore.getState();
+    const player = gameState.game.currentPlayer;
+
+    if (!player) return;
+
+    // Only update physics for nearby objects to reduce lag
+    const maxDistance = 50; // Only process objects within 50 units
+
+    gameState.game.otherPlayers.forEach((enemy: any) => {
+      const distance = Math.sqrt(
+        Math.pow(enemy.x - player.x, 2) +
+        Math.pow(enemy.z - player.z, 2)
+      );
+
+      if (distance > maxDistance) {
+        // Remove distant enemies from physics to reduce calculations
+        this.physics.removeObject(`enemy-${enemy.id}`);
+      } else {
+        // Ensure nearby enemies have physics objects
+        if (!this.physics.getObject(`enemy-${enemy.id}`)) {
+          this.physics.addObject(`enemy-${enemy.id}`, {
+            x: enemy.x,
+            y: enemy.y,
+            z: enemy.z,
+            vx: 0,
+            vy: 0,
+            vz: 0,
+            ax: 0,
+            ay: 0,
+            az: 0,
+            radius: 0.4,
+            mass: 1,
+            isGrounded: false,
+          });
+        }
+      }
+    });
   }
 
   private updateGameState() {
@@ -207,28 +462,8 @@ export class MultiplayerGameController implements GameController {
         playerObj.z
       );
 
-      // Send position update to blockchain periodically (throttle to avoid spam)
-      if (gameState.game.gameId && gameState.game.currentPlayer) {
-        const now = Date.now();
-        if (!this.lastPositionUpdate || now - this.lastPositionUpdate > 1000) { // Update every 1 second
-          suiGameService.movePlayer(
-            gameState.game.gameId,
-            gameState.game.currentPlayer.id,
-            playerObj.x,
-            playerObj.y,
-            playerObj.z
-          )
-          .then((digest: string) => {
-            console.log('[] Position update sent:', digest);
-            gameState.addPendingTransaction(digest, 'move_player');
-          })
-          .catch((error: any) => {
-            console.error('[] Failed to send position update:', error);
-          });
-
-          this.lastPositionUpdate = now;
-        }
-      }
+      // For single-player mode, skip blockchain updates
+      // Position updates are handled locally only
     }
   }
 
