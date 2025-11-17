@@ -4,13 +4,12 @@ import { useRef, useEffect } from 'react';
 import { MultiplayerGameController } from '@/lib/game-controller';
 
 export function useGameController() {
-  const controllerRef = useRef<MultiplayerGameController | null>(null);
+  const controllerRef = useRef<MultiplayerGameController>(new MultiplayerGameController());
 
   useEffect(() => {
-    controllerRef.current = new MultiplayerGameController();
-
+    // Controller is already initialized in useRef
     return () => {
-      // Cleanup
+      // Cleanup if needed
     };
   }, []);
 

@@ -98,16 +98,8 @@ export function GameBrowserRealtime() {
 
   const handleJoinGame = async (gameId: string) => {
     try {
-      const address = suiGameService.getWalletAddress();
-      if (!address) {
-        setError('Please connect your wallet first');
-        return;
-      }
-
-      const digest = await suiGameService.joinGame(gameId, 'Player');
-      addPendingTransaction(digest, 'join_game');
-      
-      console.log('[v0] Join game transaction sent:', digest);
+      // Use Dapp Kit hooks instead of service methods
+      setError('Please use the main game browser to join games');
     } catch (err) {
       console.error('[v0] Error joining game:', err);
       setError(err instanceof Error ? err.message : 'Failed to join game');

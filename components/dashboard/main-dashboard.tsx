@@ -3,16 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { GameScene } from '@/components/game/game-scene';
 import { GameHUD } from '@/components/game/game-hud';
+import { GameSyncProvider } from '@/components/game/game-sync-provider';
 import { WalletConnect } from '@/components/blockchain/wallet-connect';
 import { GameBrowser } from '@/components/blockchain/game-browser';
 import { TransactionMonitor } from '@/components/blockchain/transaction-monitor';
 import { ThemeToggle } from '@/components/theme-provider';
 import { useGameStore } from '@/lib/game-state';
-import { useGamesList } from '@/hooks/use-blockchain-game-data';
+import { useGamesList, usePlayerInventory } from '@/hooks/use-blockchain-game-data';
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { useIsMobile } from '@/components/ui/use-mobile';
 import { Menu, X } from 'lucide-react';
+import { suiGameService } from '@/lib/sui-game-service';
 
 type DashboardView = 'lobby' | 'game' | 'inventory' | 'settings';
 
@@ -20,7 +22,7 @@ export function MainDashboard() {
   const [view, setView] = useState<DashboardView>('lobby');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const gameState = useGameStore((state) => state.game);
-  const isInGame = !!gameState.gameId;
+  const isInGame = !!gameState.gameId && !!gameState.currentPlayer;
   const { games } = useGamesList();
   const isMobile = useIsMobile();
 
@@ -32,8 +34,10 @@ export function MainDashboard() {
   if (isInGame) {
     return (
       <div className="w-screen h-screen bg-background text-foreground overflow-hidden">
-        <GameScene isMultiplayer={true} />
-        <GameHUD />
+        <GameSyncProvider>
+          <GameScene isMultiplayer={true} />
+          <GameHUD />
+        </GameSyncProvider>
       </div>
     );
   }
@@ -150,7 +154,8 @@ function LobbyView() {
   const [gameName, setGameName] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [createError, setCreateError] = useState<string | null>(null);
-  const { games } = useGamesList();
+  const [games, setGames] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const addPendingTransaction = useGameStore((state) => state.addPendingTransaction);
   const isMobile = useIsMobile();
 
@@ -162,6 +167,73 @@ function LobbyView() {
   // Calculate real stats from blockchain data
   const totalGames = games?.length || 0;
   const totalPlayers = games?.reduce((total: number, game: any) => total + (game.playerCount || 0), 0) || 0;
+
+  // Real-time game updates
+  useEffect(() => {
+    const loadGames = async () => {
+      try {
+        setLoading(true);
+        const gamesList = await suiGameService.getAllGames();
+        setGames(gamesList);
+      } catch (error) {
+        console.error('Failed to load games:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadGames();
+    const interval = setInterval(loadGames, 10000); // Refresh every 10 seconds
+
+    // Subscribe to real-time game events
+    const subscribeToGameEvents = async () => {
+      try {
+        const unsubscribe = suiGameService.subscribeToGameEvents(
+          'global', // Listen to all games
+          (event: any) => {
+            console.log('Lobby: Game event received:', event.type);
+
+            if (event.type === 'GameCreated') {
+              const newGame = {
+                id: event.data.game_id,
+                name: Buffer.from(event.data.name).toString('utf-8') || 'New Game',
+                playerCount: 0,
+                maxPlayers: event.data.max_players || 32,
+                isActive: true,
+                creator: event.data.creator ? `${event.data.creator.slice(0, 6)}...${event.data.creator.slice(-4)}` : '0x0...0x0',
+                createdAt: event.data.timestamp || Date.now(),
+              };
+              setGames((prevGames) => [newGame, ...prevGames]);
+              console.log('Lobby: New game added:', newGame.name);
+            } else if (event.type === 'PlayerJoined') {
+              setGames((prevGames) =>
+                prevGames.map((game) =>
+                  game.id === event.data.game_id
+                    ? { ...game, playerCount: game.playerCount + 1 }
+                    : game
+                )
+              );
+            }
+          }
+        );
+
+        return unsubscribe;
+      } catch (error) {
+        console.error('Lobby: Error subscribing to game events:', error);
+        return () => {};
+      }
+    };
+
+    let cleanup: (() => void) | undefined;
+    subscribeToGameEvents().then((fn) => {
+      cleanup = fn;
+    });
+
+    return () => {
+      clearInterval(interval);
+      cleanup?.();
+    };
+  }, []);
 
   const handleCreateGame = async () => {
     if (!gameName.trim()) {
@@ -237,6 +309,57 @@ function LobbyView() {
           <div className="text-2xl md:text-3xl font-bold text-accent">{totalGames}</div>
           <div className="text-xs text-muted-foreground mt-2">Waiting for players</div>
         </div>
+      </div>
+
+      {/* Recent Games List */}
+      <div className="stat-box hover:scale-105 transition-transform duration-200">
+        <div className="text-lg font-bold text-primary mb-4">Recent Games</div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2"></div>
+            <span className="text-muted-foreground text-sm">Loading games...</span>
+          </div>
+        ) : games.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground text-sm">No games available. Create one to get started!</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {games.slice(0, 5).map((game) => (
+              <div
+                key={game.id}
+                className="flex justify-between items-center p-3 bg-background/50 rounded border border-primary/20 hover:border-primary/40 transition-all"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-primary truncate text-sm">{game.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    Creator: {game.creator}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Players: {game.playerCount}/{game.maxPlayers}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${game.isActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <button
+                    onClick={() => {
+                      // Navigate to game browser view
+                      const mainDashboard = document.querySelector('[data-view="game"]');
+                      if (mainDashboard) {
+                        (mainDashboard as HTMLElement).click();
+                      }
+                    }}
+                    className="text-xs px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-primary transition-all"
+                  >
+                    Browse
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="stat-box space-y-4 hover:scale-105 transition-transform duration-200">
@@ -324,36 +447,76 @@ function GameBrowserView() {
 }
 
 function InventoryView() {
-  const items = [
-    { id: 1, name: 'Plasma Sword', rarity: 'Legendary', power: 85 },
-    { id: 2, name: 'Energy Shield', rarity: 'Rare', power: 65 },
-    { id: 3, name: 'Speed Boost', rarity: 'Common', power: 40 },
-  ];
+  const currentAccount = useCurrentAccount();
+  const { inventory, loading, error } = usePlayerInventory(currentAccount?.address || '');
+
+  if (!currentAccount) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold glow-cyan mb-2">Inventory</h2>
+          <p className="text-muted-foreground">Your NFT assets and equipment</p>
+        </div>
+        <div className="stat-box text-center py-12">
+          <p className="text-muted-foreground">Please connect your wallet to view your inventory</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold glow-cyan mb-2">Inventory</h2>
-        <p className="text-muted-foreground">Your NFT assets and equipment</p>
+        <p className="text-muted-foreground">Your NFT assets and equipment from Sui blockchain</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {items.map((item) => (
-          <div key={item.id} className="stat-box group cursor-pointer hover:border-primary/80">
-            <div className="mb-2 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded flex items-center justify-center text-4xl">
-              ⚔️
-            </div>
-            <div className="text-sm font-semibold text-primary mb-1">{item.name}</div>
-            <div className={`text-xs font-bold mb-2 ${
-              item.rarity === 'Legendary' ? 'text-accent' :
-              item.rarity === 'Rare' ? 'text-secondary' : 'text-muted-foreground'
-            }`}>
-              {item.rarity}
-            </div>
-            <div className="text-xs text-muted-foreground">Power: {item.power}</div>
+      {loading && (
+        <div className="stat-box flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p className="text-muted-foreground">Loading inventory from blockchain...</p>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="stat-box bg-red-500/10 border-red-500/30">
+          <p className="text-red-500 text-sm">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {inventory.map((item) => (
+            <div key={item.id} className="stat-box group cursor-pointer hover:border-primary/80 hover:scale-105 transition-all duration-200">
+              <div className="mb-2 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded flex items-center justify-center text-4xl">
+                {item.type === 'Weapon' ? '⚔️' : item.type === 'Armor' ? '🛡️' : item.type === 'Boots' ? '👢' : '🎒'}
+              </div>
+              <div className="text-sm font-semibold text-primary mb-1">{item.name}</div>
+              <div className="text-xs text-muted-foreground mb-1">{item.type}</div>
+              <div className={`text-xs font-bold mb-2 ${
+                item.rarity === 'Legendary' ? 'text-accent glow-cyan' :
+                item.rarity === 'Epic' ? 'text-purple-400 glow-purple' :
+                item.rarity === 'Rare' ? 'text-secondary' : 'text-muted-foreground'
+              }`}>
+                {item.rarity}
+              </div>
+              <div className="text-xs text-muted-foreground">Power: {item.power}</div>
+              <div className="text-xs text-muted-foreground mt-1 font-mono truncate">
+                ID: {item.objectId === 'demo' ? 'Demo Item' : `${item.objectId.slice(0, 6)}...${item.objectId.slice(-4)}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && inventory.length === 0 && (
+        <div className="stat-box text-center py-12">
+          <p className="text-muted-foreground">No items found in your inventory</p>
+          <p className="text-xs text-muted-foreground mt-2">Items will appear here once you acquire them in games</p>
+        </div>
+      )}
     </div>
   );
 }

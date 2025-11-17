@@ -14,6 +14,8 @@ export function useJoinGame() {
       throw new Error('No wallet connected');
     }
 
+    console.log('[] Creating join game transaction for game:', gameId, 'username:', username);
+
     const tx = new Transaction();
 
     tx.moveCall({
@@ -25,15 +27,21 @@ export function useJoinGame() {
       ],
     });
 
+    console.log('[] Executing join game transaction...');
     const result = await signAndExecuteTransaction({
       transaction: tx,
     });
 
-    // Wait a bit for the transaction to be processed
+    console.log('[] Join transaction executed successfully:', result.digest);
+
+    // Wait for the transaction to be processed
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Fetch the player data after successful join
+    console.log('[] Fetching player data for address:', currentAccount.address);
     const playerData = await suiGameService.getPlayerByAddress(gameId, currentAccount.address);
+
+    console.log('[] Player data retrieved:', playerData);
 
     return {
       ...result,

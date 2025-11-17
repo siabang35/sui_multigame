@@ -5,6 +5,8 @@ import { suiGameService } from '@/lib/sui-game-service';
 import { useGameStore } from '@/lib/game-state';
 import { BlockchainTransactionStatus } from './realtime-sync-monitor';
 import { useJoinGame } from '@/hooks/use-join-game';
+import { multiplayerSync } from '@/lib/multiplayer-sync';
+import { useCurrentAccount } from '@mysten/dapp-kit';
 
 interface GameSession {
   id: string;
@@ -26,14 +28,17 @@ export function GameBrowser() {
 
   const setGameState = useGameStore((state) => state.setGameState);
   const addPendingTransaction = useGameStore((state) => state.addPendingTransaction);
+  const addOtherPlayer = useGameStore((state) => state.addOtherPlayer);
+
   const { joinGame } = useJoinGame();
+  const currentAccount = useCurrentAccount();
 
   useEffect(() => {
     const loadGames = async () => {
       try {
         setLoading(true);
         const gamesList = await suiGameService.getAllGames();
-        
+
         const formattedGames: GameSession[] = gamesList.map((game: any) => ({
           id: game.id,
           name: game.name || 'Unnamed Game',
@@ -59,16 +64,15 @@ export function GameBrowser() {
     return () => clearInterval(interval);
   }, []);
 
+  // Real-time subscription for game events
   useEffect(() => {
     const subscribeToGameEvents = async () => {
-      if (games.length === 0) return;
-
       try {
         const unsubscribe = suiGameService.subscribeToGameEvents(
-          games[0].id,
+          'global',
           (event: any) => {
             console.log('[] Game event received:', event.type);
-            
+
             if (event.type === 'PlayerJoined') {
               setGames((prevGames) =>
                 prevGames.map((game) =>
@@ -77,6 +81,18 @@ export function GameBrowser() {
                     : game
                 )
               );
+            } else if (event.type === 'GameCreated') {
+              const newGame: GameSession = {
+                id: event.data.game_id,
+                name: Buffer.from(event.data.name).toString('utf-8') || 'New Game',
+                playerCount: 0,
+                maxPlayers: event.data.max_players || 32,
+                isActive: true,
+                creator: event.data.creator ? `${event.data.creator.slice(0, 6)}...${event.data.creator.slice(-4)}` : '0x0...0x0',
+                createdAt: event.data.timestamp || Date.now(),
+              };
+              setGames((prevGames) => [newGame, ...prevGames]);
+              console.log('[] New game added to list:', newGame.name);
             }
           }
         );
@@ -93,7 +109,7 @@ export function GameBrowser() {
     });
 
     return () => cleanup?.();
-  }, [games.length, games[0]?.id]);
+  }, []);
 
   const handleJoinGame = async (game: GameSession) => {
     try {
@@ -109,23 +125,72 @@ export function GameBrowser() {
 
       // Use the Dapp Kit hook to join the game
       const result = await joinGame(game.id, username);
+      console.log('[] Join transaction result:', result);
 
       // Add to pending transactions for monitoring
       addPendingTransaction(result.digest, 'join_game');
 
+      // Wait a bit more for transaction to be processed
+      await new Promise(resolve => setTimeout(resolve, 4000));
+
+      // Fetch updated player data - use current account from Dapp Kit
+      if (!currentAccount) {
+        throw new Error('No wallet connected');
+      }
+
+      const playerData = await suiGameService.getPlayerByAddress(game.id, currentAccount.address);
+      console.log('[] Fetched player data after join:', playerData);
+
+      if (!playerData) {
+        throw new Error('Failed to retrieve player data after joining. Please try again.');
+      }
+
+      // Set game state with current player data
       setGameState({
         gameId: game.id,
         gameName: game.name,
         isActive: game.isActive,
         playerCount: game.playerCount + 1,
         maxPlayers: game.maxPlayers,
+        currentPlayer: {
+          id: playerData.id,
+          address: playerData.address,
+          username: playerData.username,
+          x: playerData.x || 0,
+          y: playerData.y || 0,
+          z: playerData.z || 0,
+          health: playerData.health || 100,
+          score: playerData.score || 0,
+          kills: playerData.kills || 0,
+          deaths: playerData.deaths || 0,
+          isAlive: playerData.isAlive !== false,
+          syncStatus: 'synced',
+        },
       });
 
-      console.log('[] Join game transaction submitted:', result.digest);
+      // Update blockchain sync status
+      useGameStore.getState().updateBlockchainSync('connected');
+
+      // Connect multiplayer sync for realtime gameplay (skip if no WebSocket URL)
+      if (multiplayerSync && process.env.NEXT_PUBLIC_WS_URL) {
+        console.log('[] Attempting multiplayer sync connection...');
+        // Don't await - let it connect in background
+        multiplayerSync.connect(playerData.id, game.id).then(() => {
+          console.log('[] Multiplayer sync connected for game:', game.id);
+        }).catch((syncError) => {
+          console.warn('[] Multiplayer sync connection failed, continuing without real-time sync:', syncError);
+        });
+      } else {
+        console.log('[] Skipping multiplayer sync - no WebSocket URL configured');
+      }
+
+      console.log('[] Game joined successfully, transitioning to game view');
       setSelectedGame(null);
+      setJoiningGameId(null);
     } catch (error) {
       console.error('[] Failed to join game:', error);
-      setJoinError(error instanceof Error ? error.message : 'Failed to join game');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to join game';
+      setJoinError(errorMessage);
       setJoiningGameId(null);
     }
   };

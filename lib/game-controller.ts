@@ -11,6 +11,14 @@ export interface GameController {
   attackPlayer(targetId: string, damage: number): void;
   handleInput(): void;
   isMouseDown(): boolean;
+  inputState: {
+    forward: boolean;
+    backward: boolean;
+    left: boolean;
+    right: boolean;
+    jump: boolean;
+    attack: boolean;
+  };
 }
 
 export class MultiplayerGameController implements GameController {
@@ -20,6 +28,15 @@ export class MultiplayerGameController implements GameController {
   private jumpForce = 8;
   private attackCooldown = 0;
   private attackCooldownMax = 0.5;
+
+  inputState = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    jump: false,
+    attack: false,
+  };
 
   isMouseDown(): boolean {
     return inputManager?.isMouseDown() ?? false;
@@ -64,6 +81,16 @@ export class MultiplayerGameController implements GameController {
     const movement = inputManager.getMovementVector();
     const playerObj = this.physics.getObject('player');
 
+    // Update input state
+    this.inputState = {
+      forward: inputManager.isKeyPressed('w') || inputManager.isKeyPressed('arrowup'),
+      backward: inputManager.isKeyPressed('s') || inputManager.isKeyPressed('arrowdown'),
+      left: inputManager.isKeyPressed('a') || inputManager.isKeyPressed('arrowleft'),
+      right: inputManager.isKeyPressed('d') || inputManager.isKeyPressed('arrowright'),
+      jump: inputManager.isKeyPressed(' '),
+      attack: this.isMouseDown(),
+    };
+
     if (playerObj) {
       // Apply movement
       const moveForce = this.moveSpeed;
@@ -75,12 +102,12 @@ export class MultiplayerGameController implements GameController {
       }
 
       // Jump
-      if (inputManager.isKeyPressed(' ') && playerObj.isGrounded) {
+      if (this.inputState.jump && playerObj.isGrounded) {
         this.physics.applyImpulse('player', 0, this.jumpForce, 0);
       }
 
       // Attack
-      if (this.isMouseDown() && this.attackCooldown <= 0) {
+      if (this.inputState.attack && this.attackCooldown <= 0) {
         this.performAttack();
         this.attackCooldown = this.attackCooldownMax;
       }

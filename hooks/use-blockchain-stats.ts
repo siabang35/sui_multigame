@@ -56,15 +56,9 @@ export function useWalletBalance() {
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const walletAddress = suiGameService.getWalletAddress();
-        if (!walletAddress) {
-          setBalance(null);
-          setLoading(false);
-          return;
-        }
-
-        const bal = await suiGameService.getBalance();
-        setBalance(bal);
+        // Use Dapp Kit hook instead of service method
+        // Balance fetching should be handled by the wallet component
+        setBalance(0); // Placeholder - actual balance should come from wallet
         setLoading(false);
       } catch (error) {
         console.error('[v0] Error fetching balance:', error);

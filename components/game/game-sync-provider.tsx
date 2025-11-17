@@ -13,11 +13,18 @@ export function GameSyncProvider({ children }: { children: React.ReactNode }) {
 
     const gameState = useGameStore.getState();
     if (gameState.game.gameId && gameState.game.currentPlayer && multiplayerSync) {
+      console.log('[] GameSyncProvider: Connecting multiplayer sync for player:', gameState.game.currentPlayer.username);
       multiplayerSync
         .connect(gameState.game.currentPlayer.id, gameState.game.gameId)
-        .catch(console.error);
+        .then(() => {
+          console.log('[] GameSyncProvider: Multiplayer sync connected successfully');
+        })
+        .catch((error) => {
+          console.error('[] GameSyncProvider: Failed to connect multiplayer sync:', error);
+        });
 
       return () => {
+        console.log('[] GameSyncProvider: Disconnecting multiplayer sync');
         multiplayerSync?.disconnect();
       };
     }

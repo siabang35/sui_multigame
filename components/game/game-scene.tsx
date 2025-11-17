@@ -2,10 +2,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Sky, Stars, Environment } from '@react-three/drei';
+import { OrbitControls, PerspectiveCamera, Stars, Environment, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { PlayerModel } from './player-model';
-import { GameEnvironment } from './game-environment';
+import { SpaceEnvironment } from './space-environment';
 import { useGameStore } from '@/lib/game-state';
 import { useIsMobile } from '@/components/ui/use-mobile';
 
@@ -16,7 +16,9 @@ interface GameSceneProps {
 export function GameScene({ isMultiplayer = true }: GameSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [isLoading, setIsLoading] = useState(true);
   const isMobile = useIsMobile();
+  const gameState = useGameStore((state) => state.game);
 
   useEffect(() => {
     const handleResize = () => {
@@ -33,77 +35,88 @@ export function GameScene({ isMultiplayer = true }: GameSceneProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (windowSize.width === 0) return null;
+  useEffect(() => {
+    // Set loading to false after a short delay to ensure everything is rendered
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Show loading screen if no game state or still loading
+  if (windowSize.width === 0 || isLoading || !gameState.gameId || !gameState.currentPlayer) {
+    return (
+      <div className="w-full h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-cyan-400 text-lg font-semibold">Loading Space Arena...</p>
+          <p className="text-gray-400 text-sm mt-2">
+            {!gameState.gameId ? 'Waiting for game data...' :
+             !gameState.currentPlayer ? 'Initializing player...' :
+             'Preparing spaceship battlefield'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div ref={containerRef} className="w-full h-screen relative bg-background">
+    <div ref={containerRef} className="w-full h-screen relative bg-black">
       <Canvas
         className="!h-full"
-        camera={{ position: [0, 15, 25], fov: isMobile ? 75 : 60 }}
+        camera={{ position: [0, 0, 50], fov: isMobile ? 75 : 60 }}
         shadows
         dpr={[1, 2]}
         performance={{ min: 0.5 }}
       >
-        <PerspectiveCamera makeDefault position={[0, 15, 25]} fov={isMobile ? 75 : 60} />
+        <PerspectiveCamera makeDefault position={[0, 0, 50]} fov={isMobile ? 75 : 60} />
 
-        {/* Enhanced Lighting */}
-        <ambientLight intensity={0.4} />
-        <directionalLight
-          position={[10, 20, 10]}
-          intensity={1.2}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-left={-100}
-          shadow-camera-right={100}
-          shadow-camera-top={100}
-          shadow-camera-bottom={-100}
-        />
-        <pointLight position={[0, 20, 0]} intensity={0.5} color="#00c8ff" />
-        <pointLight position={[50, 15, 50]} intensity={0.3} color="#ff00ff" />
-        <pointLight position={[-50, 15, -50]} intensity={0.3} color="#00ff88" />
+        {/* Space Lighting */}
+        <ambientLight intensity={0.2} />
+        <pointLight position={[0, 0, 0]} intensity={0.5} color="#00c8ff" />
+        <pointLight position={[100, 50, 100]} intensity={0.3} color="#ff00ff" />
+        <pointLight position={[-100, -50, -100]} intensity={0.3} color="#00ff88" />
 
-        {/* Environment */}
-        <Sky
-          distance={450000}
-          sunPosition={[100, 50, 100]}
-          inclination={0.6}
-          azimuth={0.25}
-        />
-        <Stars radius={300} depth={60} count={isMobile ? 10000 : 20000} factor={7} />
+        {/* Space Environment */}
+        <Stars radius={500} depth={50} count={isMobile ? 5000 : 10000} factor={4} />
         <Environment preset="night" />
 
-        {/* Game World */}
-        <GameEnvironment />
+        {/* Space Game World */}
+        <SpaceEnvironment />
 
-        {/* Player Model */}
+        {/* Player Spaceships */}
         <PlayerModel />
 
-        {/* Controls - Mobile optimized */}
+        {/* Space Controls */}
         <OrbitControls
           enableDamping
           dampingFactor={0.05}
           autoRotate={false}
-          minDistance={isMobile ? 15 : 10}
-          maxDistance={isMobile ? 80 : 100}
+          minDistance={20}
+          maxDistance={200}
           minPolarAngle={0}
           maxPolarAngle={Math.PI}
-          enablePan={isMobile ? false : true}
-          enableZoom={isMobile ? false : true}
+          enablePan={true}
+          enableZoom={true}
           enableRotate={true}
         />
       </Canvas>
 
-      {/* HUD Overlay - Mobile responsive */}
+      {/* Space HUD Overlay */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
         <div className={`absolute top-4 ${isMobile ? 'left-2 right-2' : 'left-4 right-4'} flex justify-between items-start pointer-events-auto`}>
           <div className="space-y-2">
-            <div className={`text-primary font-bold ${isMobile ? 'text-base' : 'text-sm'} glow-cyan`}>MULTIPLY</div>
-            <div className="text-xs text-muted-foreground">Sui Testnet</div>
+            <div className={`text-cyan-400 font-bold ${isMobile ? 'text-base' : 'text-sm'} glow-cyan`}>SPACE SHOOTER</div>
+            <div className="text-xs text-gray-400">Sui Testnet</div>
           </div>
           <div className="space-y-2 text-right">
-            <div className="text-xs text-muted-foreground">PING: 12ms</div>
-            <div className="text-xs text-muted-foreground">FPS: 60</div>
+            <div className="text-xs text-gray-400">PING: 12ms</div>
+            <div className="text-xs text-gray-400">FPS: 60</div>
+          </div>
+        </div>
+
+        {/* Crosshair */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          <div className="w-6 h-6 border border-cyan-400 rounded-full opacity-50">
+            <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-cyan-400 rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
           </div>
         </div>
       </div>

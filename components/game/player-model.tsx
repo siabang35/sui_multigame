@@ -2,111 +2,204 @@
 
 import React, { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from '@/lib/game-state';
+import { useGameController } from '@/hooks/use-game-controller';
 
 export function PlayerModel() {
   const groupRef = useRef<THREE.Group>(null);
   const gameState = useGameStore((state) => state.game);
+  const updatePlayerPosition = useGameStore((state) => state.updatePlayerPosition);
+  const { inputState } = useGameController();
   const otherPlayers = gameState.otherPlayers;
+
+  useFrame((state, delta) => {
+    if (!gameState.currentPlayer) return;
+
+    const player = gameState.currentPlayer;
+    const speed = 15 * delta; // Faster movement in space
+
+    // Handle movement input
+    let newX = player.x;
+    let newY = player.y;
+    let newZ = player.z;
+
+    if (inputState.forward) newZ -= speed;
+    if (inputState.backward) newZ += speed;
+    if (inputState.left) newX -= speed;
+    if (inputState.right) newX += speed;
+
+    // Space boundary checks (larger area)
+    newX = Math.max(-180, Math.min(180, newX));
+    newZ = Math.max(-180, Math.min(180, newZ));
+    newY = Math.max(-80, Math.min(80, newY));
+
+    // Update position if changed
+    if (newX !== player.x || newY !== player.y || newZ !== player.z) {
+      updatePlayerPosition(newX, newY, newZ);
+    }
+  });
 
   return (
     <>
-      {/* Current Player */}
+      {/* Current Player Spaceship */}
       {gameState.currentPlayer && (
         <group ref={groupRef} position={[gameState.currentPlayer.x, gameState.currentPlayer.y, gameState.currentPlayer.z]}>
-          <PlayerCharacter isLocalPlayer={true} />
+          <Spaceship isLocalPlayer={true} player={gameState.currentPlayer} />
         </group>
       )}
 
-      {/* Other Players */}
+      {/* Other Player Spaceships */}
       {otherPlayers.map((player) => (
         <group key={player.id} position={[player.x, player.y, player.z]}>
-          <PlayerCharacter isLocalPlayer={false} playerName={player.username} />
+          <Spaceship isLocalPlayer={false} playerName={player.username} player={player} />
         </group>
       ))}
     </>
   );
 }
 
-interface PlayerCharacterProps {
+interface SpaceshipProps {
   isLocalPlayer: boolean;
   playerName?: string;
+  player: any;
 }
 
-function PlayerCharacter({ isLocalPlayer, playerName }: PlayerCharacterProps) {
+function Spaceship({ isLocalPlayer, playerName, player }: SpaceshipProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const engineRef = useRef<THREE.Mesh>(null);
   const healthBarRef = useRef<THREE.Mesh>(null);
 
-  useFrame(() => {
+  useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += 0.01;
+      // Gentle rotation for spaceship
+      groupRef.current.rotation.y += 0.005;
+    }
+
+    // Engine glow animation
+    if (engineRef.current && engineRef.current.material) {
+      const material = engineRef.current.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.6 + Math.sin(state.clock.getElapsedTime() * 10) * 0.2;
     }
   });
 
   return (
     <group ref={groupRef}>
-      {/* Player Body */}
-      <mesh castShadow receiveShadow position={[0, 1, 0]}>
-        <capsuleGeometry args={[0.4, 2, 4, 8]} />
+      {/* Spaceship Body */}
+      <mesh castShadow receiveShadow position={[0, 0, 0]}>
+        <coneGeometry args={[1.5, 4, 8]} />
         <meshStandardMaterial
-          color={isLocalPlayer ? '#00c8ff' : '#ff00ff'}
-          emissive={isLocalPlayer ? '#00c8ff' : '#ff00ff'}
-          emissiveIntensity={0.3}
-          metalness={0.6}
-          roughness={0.4}
+          color={isLocalPlayer ? '#00c8ff' : '#ff4444'}
+          emissive={isLocalPlayer ? '#00c8ff' : '#ff4444'}
+          emissiveIntensity={0.2}
+          metalness={0.8}
+          roughness={0.2}
         />
       </mesh>
 
-      {/* Head */}
-      <mesh castShadow receiveShadow position={[0, 2.2, 0]}>
-        <sphereGeometry args={[0.35, 32, 32]} />
+      {/* Cockpit */}
+      <mesh castShadow receiveShadow position={[0, 1, 0]}>
+        <sphereGeometry args={[0.8, 16, 16]} />
         <meshStandardMaterial
-          color={isLocalPlayer ? '#00c8ff' : '#ff00ff'}
-          emissive={isLocalPlayer ? '#00c8ff' : '#ff00ff'}
-          emissiveIntensity={0.4}
+          color="#87CEEB"
+          emissive="#87CEEB"
+          emissiveIntensity={0.1}
+          metalness={0.9}
+          roughness={0.1}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+
+      {/* Wings */}
+      <mesh castShadow receiveShadow position={[2, -0.5, 0]}>
+        <boxGeometry args={[3, 0.2, 1]} />
+        <meshStandardMaterial
+          color={isLocalPlayer ? '#00c8ff' : '#ff4444'}
+          emissive={isLocalPlayer ? '#00c8ff' : '#ff4444'}
+          emissiveIntensity={0.1}
+          metalness={0.7}
+          roughness={0.3}
+        />
+      </mesh>
+      <mesh castShadow receiveShadow position={[-2, -0.5, 0]}>
+        <boxGeometry args={[3, 0.2, 1]} />
+        <meshStandardMaterial
+          color={isLocalPlayer ? '#00c8ff' : '#ff4444'}
+          emissive={isLocalPlayer ? '#00c8ff' : '#ff4444'}
+          emissiveIntensity={0.1}
           metalness={0.7}
           roughness={0.3}
         />
       </mesh>
 
-      {/* Eyes */}
-      <mesh position={[0.12, 2.35, -0.3]}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        <meshStandardMaterial
-          color="#ffffff"
-          emissive="#00ff00"
-          emissiveIntensity={0.8}
-        />
-      </mesh>
-      <mesh position={[-0.12, 2.35, -0.3]}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        <meshStandardMaterial
-          color="#ffffff"
-          emissive="#00ff00"
-          emissiveIntensity={0.8}
+      {/* Engine Exhaust */}
+      <mesh ref={engineRef} position={[0, -2.5, 0]}>
+        <cylinderGeometry args={[0.3, 0.5, 1, 8]} />
+        <meshBasicMaterial
+          color="#00ff88"
+          transparent
+          opacity={0.6}
         />
       </mesh>
 
-      {/* Glowing Aura */}
-      <mesh position={[0, 1, 0]}>
-        <sphereGeometry args={[0.8, 32, 32]} />
+      {/* Rocket Boosters */}
+      <mesh position={[0.8, -1, 0]}>
+        <cylinderGeometry args={[0.2, 0.3, 1, 6]} />
+        <meshStandardMaterial
+          color="#666666"
+          metalness={0.9}
+          roughness={0.1}
+        />
+      </mesh>
+      <mesh position={[-0.8, -1, 0]}>
+        <cylinderGeometry args={[0.2, 0.3, 1, 6]} />
+        <meshStandardMaterial
+          color="#666666"
+          metalness={0.9}
+          roughness={0.1}
+        />
+      </mesh>
+
+      {/* Weapon Systems */}
+      <mesh position={[1.2, 0.5, 0]}>
+        <cylinderGeometry args={[0.1, 0.1, 0.8, 6]} />
+        <meshStandardMaterial
+          color="#ff0000"
+          emissive="#ff0000"
+          emissiveIntensity={0.5}
+        />
+      </mesh>
+      <mesh position={[-1.2, 0.5, 0]}>
+        <cylinderGeometry args={[0.1, 0.1, 0.8, 6]} />
+        <meshStandardMaterial
+          color="#ff0000"
+          emissive="#ff0000"
+          emissiveIntensity={0.5}
+        />
+      </mesh>
+
+      {/* Energy Shield */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[2.5, 16, 16]} />
         <meshBasicMaterial
-          color={isLocalPlayer ? '#00c8ff' : '#ff00ff'}
+          color={isLocalPlayer ? '#00c8ff' : '#ff4444'}
           transparent
-          opacity={0.1}
+          opacity={0.05}
+          wireframe
         />
       </mesh>
 
       {/* Health Bar Background */}
-      <mesh position={[0, 3.2, 0]}>
-        <planeGeometry args={[1, 0.15]} />
+      <mesh position={[0, 3, 0]}>
+        <planeGeometry args={[2, 0.2]} />
         <meshBasicMaterial color="#333333" />
       </mesh>
 
       {/* Health Bar */}
-      <mesh ref={healthBarRef} position={[-0.4, 3.2, 0.01]}>
-        <planeGeometry args={[0.8, 0.1]} />
+      <mesh ref={healthBarRef} position={[-0.8 + (1.6 * (1 - player.health / 100)), 3, 0.01]}>
+        <planeGeometry args={[1.6 * (player.health / 100), 0.15]} />
         <meshBasicMaterial
           color={isLocalPlayer ? '#00ff00' : '#ff6600'}
         />
@@ -114,16 +207,16 @@ function PlayerCharacter({ isLocalPlayer, playerName }: PlayerCharacterProps) {
 
       {/* Name Tag */}
       {playerName && (
-        <HtmlPortal position={[0, 3.5, 0]}>
-          <div className="text-xs text-primary font-bold whitespace-nowrap px-2 py-1 bg-background/80 rounded border border-primary/50 glow-cyan">
+        <Html position={[0, 3.5, 0]}>
+          <div className="text-xs text-cyan-400 font-bold whitespace-nowrap px-2 py-1 bg-black/80 rounded border border-cyan-400/50">
             {playerName}
           </div>
-        </HtmlPortal>
+        </Html>
       )}
 
-      {/* Attack Range Indicator (if attacking) */}
-      <mesh position={[0, 1, 0]}>
-        <sphereGeometry args={[3, 32, 32]} />
+      {/* Attack Range Indicator */}
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[8, 16, 16]} />
         <meshBasicMaterial
           color="#ff0000"
           transparent
@@ -135,7 +228,4 @@ function PlayerCharacter({ isLocalPlayer, playerName }: PlayerCharacterProps) {
   );
 }
 
-// Simple HTML portal for name tags
-function HtmlPortal({ position, children }: { position: [number, number, number]; children: React.ReactNode }) {
-  return <group position={position}>{children}</group>;
-}
+// Removed HtmlPortal - using Html directly now

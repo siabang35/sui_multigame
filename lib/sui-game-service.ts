@@ -41,7 +41,7 @@ export interface PlayerData {
 export type WalletType = 'sui' | 'slush' | 'ethos' | 'mysten' | null;
 
 export class SuiGameService {
-  private suiClient: SuiClient;
+  public suiClient: SuiClient;
   private eventStream: any;
   private listeningGames: Set<string> = new Set();
 
@@ -140,20 +140,42 @@ export class SuiGameService {
           // Fetch transaction details to get game data
           const txDetails = await this.suiClient.getTransactionBlock({
             digest: tx.digest,
-            options: { showObjectChanges: true },
+            options: { showObjectChanges: true, showEvents: true },
           });
 
           if (txDetails.objectChanges) {
             for (const change of txDetails.objectChanges) {
               if (change.type === 'created' && change.objectType?.includes('Game')) {
+                // Try to get game data from events
+                let gameName = 'Unnamed Game';
+                let creator = '0x0...0x0';
+                let maxPlayers = 32;
+
+                if (txDetails.events) {
+                  for (const event of txDetails.events) {
+                    if (event.type.includes('GameCreated')) {
+                      const eventData = event.parsedJson as any;
+                      if (eventData.name) {
+                        gameName = Buffer.from(eventData.name).toString('utf-8');
+                      }
+                      if (eventData.creator) {
+                        creator = eventData.creator;
+                      }
+                      if (eventData.max_players) {
+                        maxPlayers = Number(eventData.max_players);
+                      }
+                    }
+                  }
+                }
+
                 const gameData: GameData = {
                   id: change.objectId,
-                  name: 'Unnamed Game',
-                  creator: '0x0...0x0',
+                  name: gameName,
+                  creator: creator,
                   isActive: true,
-                  createdAt: Date.now(),
+                  createdAt: Number(tx.timestampMs) || Date.now(),
                   playerCount: 0,
-                  maxPlayers: 32,
+                  maxPlayers: maxPlayers,
                   version: 1,
                 };
                 gameList.push(gameData);
@@ -260,7 +282,7 @@ export class SuiGameService {
   }
 
   // ===== Event Subscription =====
-  async subscribeToGameEvents(gameId: string, callback: (event: any) => void) {
+  async subscribeToGameEvents(gameId: string | 'global', callback: (event: any) => void) {
     if (this.listeningGames.has(gameId)) {
       console.log(`Already listening to events for game ${gameId}`);
       return;
@@ -270,37 +292,44 @@ export class SuiGameService {
 
     try {
       const unsubscribe = this.eventStream.subscribe('PlayerJoined', (event: any) => {
-        if (event.data.game_id === gameId) {
+        if (gameId === 'global' || event.data.game_id === gameId) {
+          callback(event);
+        }
+      });
+
+      const unsubscribeGameCreated = this.eventStream.subscribe('GameCreated', (event: any) => {
+        if (gameId === 'global') {
           callback(event);
         }
       });
 
       const unsubscribeMove = this.eventStream.subscribe('PlayerMoved', (event: any) => {
-        if (event.data.game_id === gameId) {
+        if (gameId === 'global' || event.data.game_id === gameId) {
           callback(event);
         }
       });
 
       const unsubscribeAttack = this.eventStream.subscribe('PlayerAttacked', (event: any) => {
-        if (event.data.game_id === gameId) {
+        if (gameId === 'global' || event.data.game_id === gameId) {
           callback(event);
         }
       });
 
       const unsubscribeRespawn = this.eventStream.subscribe('PlayerRespawned', (event: any) => {
-        if (event.data.game_id === gameId) {
+        if (gameId === 'global' || event.data.game_id === gameId) {
           callback(event);
         }
       });
 
       const unsubscribeDied = this.eventStream.subscribe('PlayerDied', (event: any) => {
-        if (event.data.game_id === gameId) {
+        if (gameId === 'global' || event.data.game_id === gameId) {
           callback(event);
         }
       });
 
       return () => {
         unsubscribe();
+        unsubscribeGameCreated();
         unsubscribeMove();
         unsubscribeAttack();
         unsubscribeRespawn();

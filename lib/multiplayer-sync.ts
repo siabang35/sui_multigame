@@ -11,7 +11,10 @@ export class MultiplayerSync {
 
   constructor(wsUrl: string) {
     this.wsManager = new WebSocketManager(wsUrl);
-    this.setupListeners();
+    // Only setup listeners if we have a valid WebSocket URL
+    if (wsUrl && !wsUrl.includes('dummy-url')) {
+      this.setupListeners();
+    }
   }
 
   private setupListeners(): void {
@@ -178,5 +181,5 @@ export class MultiplayerSync {
 }
 
 export const multiplayerSync = typeof window !== 'undefined'
-  ? new MultiplayerSync(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080')
+  ? new MultiplayerSync(process.env.NEXT_PUBLIC_WS_URL || '')
   : null;
